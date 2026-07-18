@@ -7,7 +7,12 @@ from pathlib import Path
 from pypdf import PdfReader, PdfWriter
 
 
-OUTPUT_PATH = Path.home() / "Documents" / "PDFTools" / "resultat.pdf"
+def expand_path(path):
+    """Developpe un chemin commencant par ~/ de facon portable."""
+    path = str(path)
+    if path.startswith(("~/", "~\\")):
+        return Path.home() / path[2:]
+    return Path(path).expanduser()
 
 
 def parse_pages(specification, page_count):
@@ -50,9 +55,10 @@ def parse_pages(specification, page_count):
     return pages
 
 
-def remove_pages(input_path, specification):
-    """Cree resultat.pdf sans les pages demandees."""
-    input_path = Path(input_path)
+def remove_pages(input_path, output_path, specification):
+    """Cree un nouveau PDF sans les pages demandees."""
+    input_path = expand_path(input_path)
+    output_path = expand_path(output_path)
 
     if not input_path.is_file():
         raise ValueError(f"le fichier PDF d'entree n'existe pas : {input_path}")
@@ -72,26 +78,26 @@ def remove_pages(input_path, specification):
             writer.add_page(page)
 
     try:
-        OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with OUTPUT_PATH.open("wb") as output_file:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("wb") as output_file:
             writer.write(output_file)
     except OSError as error:
         raise ValueError(f"impossible de creer le PDF de sortie : {error}") from error
 
-    return OUTPUT_PATH.resolve()
+    return output_path.resolve()
 
 
 def main(arguments=None):
     arguments = sys.argv[1:] if arguments is None else arguments
-    if len(arguments) != 2:
+    if len(arguments) != 3:
         print(
-            'Usage : python3 pdf_pages.py entree.pdf "2,4-6"',
+            'Usage : python3 pdf_pages.py entree.pdf sortie.pdf "2,4-6"',
             file=sys.stderr,
         )
         return 2
 
     try:
-        output_path = remove_pages(arguments[0], arguments[1])
+        output_path = remove_pages(arguments[0], arguments[1], arguments[2])
     except ValueError as error:
         print(f"Erreur : {error}", file=sys.stderr)
         return 1
